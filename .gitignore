@@ -1,0 +1,11 @@
+.env
+.gstack/
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+data/raw/
+data/processed/
+artifacts/*.joblib
+artifacts/*.json
+reports/latest_*

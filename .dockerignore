@@ -1,0 +1,9 @@
+.git
+.gstack
+.venv
+__pycache__
+.env
+data/raw
+data/processed
+reports
+tests
