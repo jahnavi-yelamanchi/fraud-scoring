@@ -32,7 +32,7 @@ class RedisFeatureStore:
         self._update_account(event["account_token"], timestamp, event["amount"])
         self._update_merchant(event["merchant_token"], timestamp, event.get("is_fraud"))
 
-    def _load_state(self, key: str, horizon: float, now: float) -> list[list[float]]:
+    def _load_state(self, key: str, horizon: float, now: float) -> list[list[float | None]]:
         rows = json.loads(self.client.get(key) or "[]")
         return [row for row in rows if row[0] >= now - horizon]
 
@@ -48,9 +48,10 @@ class RedisFeatureStore:
     def _update_merchant(self, token: str, now: float, is_fraud: int | None) -> None:
         state_key = f"state:merchant:{token}"
         rows = self._load_state(state_key, 30 * 86400, now)
-        rows.append([now, int(is_fraud or 0)])
+        rows.append([now, int(is_fraud) if is_fraud is not None else None])
         recent = [row for row in rows if row[0] >= now - 86400]
-        fraud_rate = sum(row[1] for row in rows) / len(rows)
+        labeled = [row[1] for row in rows if row[1] is not None]
+        fraud_rate = sum(labeled) / len(labeled) if labeled else 0.0
         self.client.pipeline().set(state_key, json.dumps(rows)).hset(
             f"merchant:{token}", mapping={"txn_count_24h": len(recent), "prior_fraud_rate_30d": fraud_rate, "updated_at": now}
         ).execute()

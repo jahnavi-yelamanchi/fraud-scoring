@@ -10,14 +10,26 @@ import httpx
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--url", default="http://localhost:8000/v1/score")
+    parser.add_argument("--health-url", default="http://localhost:8000/healthz")
     parser.add_argument("--requests", type=int, default=500)
     parser.add_argument("--concurrency", type=int, default=25)
     parser.add_argument("--payload", default="data/processed/benchmark_payload.json")
+    parser.add_argument("--startup-timeout", type=float, default=30)
     arguments = parser.parse_args()
     payload = json.loads(Path(arguments.payload).read_text())
     limiter = asyncio.Semaphore(arguments.concurrency)
     latencies = []
     async with httpx.AsyncClient(timeout=10) as client:
+        deadline = perf_counter() + arguments.startup_timeout
+        while True:
+            try:
+                if (await client.get(arguments.health_url)).is_success:
+                    break
+            except httpx.HTTPError:
+                pass
+            if perf_counter() >= deadline:
+                raise RuntimeError(f"API did not become ready within {arguments.startup_timeout}s")
+            await asyncio.sleep(0.25)
         async def request() -> int:
             async with limiter:
                 start = perf_counter()

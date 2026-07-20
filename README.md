@@ -11,7 +11,7 @@ This is not a leaderboard notebook wrapped in an API. The project tests a produc
 That gives the project three measurable ablations:
 
 1. **Imbalance treatment:** compare XGBoost class weighting with SMOTE, applied to the training period only.
-2. **Feature freshness:** compare the same model using static offline features against Redis features updated by the Kafka consumer.
+2. **Feature freshness:** compare the same model using static offline features against velocity/spend features updated by the Kafka consumer.
 3. **Decision rule:** choose the review threshold on the chronological validation period by minimum expected loss, then report it once on the final test period.
 
 The evaluation follows the precision-recall recommendation for imbalanced problems in [Saito and Rehmsmeier (2015)](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0118432). SMOTE is an experiment, not a default, following its original formulation in [Chawla et al. (2002)](https://jair.org/index.php/jair/article/view/10302). XGBoost is used as the deliberately compact tabular baseline described by [Chen and Guestrin (2016)](https://arxiv.org/abs/1603.02754). The point-in-time boundary mirrors the online/offline retrieval and leakage constraints documented by [Feast](https://docs.feast.dev/getting-started/concepts/feature-retrieval).
@@ -37,6 +37,7 @@ Prerequisites: Python 3.12, Docker Desktop, and a virtual environment with `pip 
 ```bash
 cp .env.example .env
 make demo-data train
+make freshness
 make up
 ```
 
@@ -52,6 +53,14 @@ make benchmark
 ```
 
 The API returns a model risk score, review decision, feature freshness, and whether the sanitized event was accepted by Kafka. The consumer updates Redis so later requests see new transaction velocity. `make benchmark` writes p50/p95/p99 and throughput to `reports/latest_benchmark.json`.
+
+`make freshness` writes the static-versus-fresh ablation to `reports/latest_freshness.json`. It intentionally holds the merchant fraud-rate feature static: a score event does not yet mean a confirmed fraud label. That separation avoids leaking future labels into the “real-time” claim.
+
+The online model is single-threaded per request to avoid CPU oversubscription under concurrent traffic; scale serving workers only after measuring a larger load.
+
+### Checked synthetic baseline
+
+The committed code has been exercised on its generated demo data, not IEEE-CIS: fresh velocity/spend features increased PR-AUC by `0.044496` and reduced the configured held-out expected cost by `$1,920`. The local Docker benchmark completed 500 requests at concurrency 25 with `385.72 RPS` and `230.48 ms p99`. These figures validate the pipeline only; replace them with IEEE-CIS results before using them in a resume claim.
 
 ## Real-data path
 

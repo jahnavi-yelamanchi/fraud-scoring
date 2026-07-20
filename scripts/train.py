@@ -15,7 +15,7 @@ from fraud_scoring.metrics import CostModel, choose_threshold, evaluate
 def model(weighted: bool, positive_weight: float) -> XGBClassifier:
     return XGBClassifier(
         n_estimators=250, max_depth=5, learning_rate=0.05, subsample=0.8, colsample_bytree=0.8,
-        eval_metric="logloss", n_jobs=-1, random_state=7, scale_pos_weight=positive_weight if weighted else 1.0,
+        eval_metric="logloss", n_jobs=1, random_state=7, scale_pos_weight=positive_weight if weighted else 1.0,
     )
 
 
